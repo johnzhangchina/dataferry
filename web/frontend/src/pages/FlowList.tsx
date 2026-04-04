@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../api';
-import type { Flow } from '../api';
+import type { FlowWithStatus } from '../api';
 
 export default function FlowList() {
-  const [flows, setFlows] = useState<Flow[]>([]);
+  const [flows, setFlows] = useState<FlowWithStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -48,30 +48,51 @@ export default function FlowList() {
           </div>
         </div>
       ) : (
-        flows.map(flow => (
-          <Link key={flow.id} to={`/flows/${flow.id}`} className="flow-link">
-            <div className="card">
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div>
-                  <span className="flow-name">{flow.name}</span>
-                  {flow.description && <span className="flow-desc">{flow.description}</span>}
+        flows.map(flow => {
+          const lastLog = flow.last_log;
+          const lastStatus = lastLog
+            ? lastLog.error
+              ? 'error'
+              : lastLog.response_status >= 200 && lastLog.response_status < 300
+                ? 'success'
+                : 'warning'
+            : null;
+
+          return (
+            <Link key={flow.id} to={`/flows/${flow.id}`} className="flow-link">
+              <div className="card">
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div>
+                    <span className="flow-name">{flow.name}</span>
+                    {flow.description && <span className="flow-desc">{flow.description}</span>}
+                  </div>
+                  <div className="actions">
+                    <span className={`badge ${flow.enabled ? 'badge-success' : 'badge-muted'}`}>
+                      {flow.enabled ? '运行中' : '已停用'}
+                    </span>
+                    <button className="btn btn-danger btn-sm" onClick={(e) => handleDelete(e, flow.id)}>
+                      删除
+                    </button>
+                  </div>
                 </div>
-                <div className="actions">
-                  <span className={`badge ${flow.enabled ? 'badge-success' : 'badge-muted'}`}>
-                    {flow.enabled ? '运行中' : '已停用'}
-                  </span>
-                  <button className="btn btn-danger btn-sm" onClick={(e) => handleDelete(e, flow.id)}>
-                    删除
-                  </button>
+                <div className="flow-meta">
+                  <span>{flow.mappings.length} 个映射</span>
+                  <span>{flow.target.method} {flow.target.url || '未配置目标'}</span>
+                  {lastLog && (
+                    <>
+                      <span style={{ marginLeft: 'auto' }}>
+                        <span className={`badge badge-${lastStatus === 'error' ? 'error' : lastStatus === 'success' ? 'success' : 'muted'}`} style={{ marginRight: 6 }}>
+                          {lastLog.error ? 'ERR' : lastLog.response_status}
+                        </span>
+                        {new Date(lastLog.received_at).toLocaleString()}
+                      </span>
+                    </>
+                  )}
                 </div>
               </div>
-              <div className="flow-meta">
-                <span>{flow.mappings.length} 个映射</span>
-                <span>{flow.target.method} {flow.target.url || '未配置目标'}</span>
-              </div>
-            </div>
-          </Link>
-        ))
+            </Link>
+          );
+        })
       )}
     </div>
   );

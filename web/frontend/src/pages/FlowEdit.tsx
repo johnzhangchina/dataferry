@@ -96,12 +96,16 @@ function SortableMapping({ mapping: m, sortId, index, onChange, onRemove }: Sort
       <div className="drag-handle" {...attributes} {...listeners}>
         &#x2630;
       </div>
-      {m.transform === 'constant' ? (
+      {m.transform === 'constant' || m.transform === 'template' || m.transform === 'expression' ? (
         <input
-          className="mapping-constant-input"
+          className={m.transform === 'constant' ? 'mapping-constant-input' : ''}
           value={m.value || ''}
           onChange={e => onChange(index, { value: e.target.value })}
-          placeholder="固定值"
+          placeholder={
+            m.transform === 'constant' ? '固定值'
+            : m.transform === 'template' ? '{{first}} {{last}}'
+            : 'price * 100'
+          }
         />
       ) : (
         <input
@@ -122,6 +126,8 @@ function SortableMapping({ mapping: m, sortId, index, onChange, onRemove }: Sort
       >
         <option value="direct">字段取值</option>
         <option value="constant">固定值</option>
+        <option value="template">字符串拼接</option>
+        <option value="expression">数值运算</option>
       </select>
       <button className="mapping-delete" onClick={() => onRemove(index)} title="删除">
         &times;
@@ -204,10 +210,11 @@ export default function FlowEdit() {
     for (let i = 0; i < flow.mappings.length; i++) {
       const m = flow.mappings[i];
       if (!m.target) return `第 ${i + 1} 条映射：目标字段不能为空`;
-      if ((m.transform || 'direct') === 'direct' && !m.source)
+      const t = m.transform || 'direct';
+      if (t === 'direct' && !m.source)
         return `第 ${i + 1} 条映射：字段取值类型必须填写源字段`;
-      if (m.transform === 'constant' && !m.value)
-        return `第 ${i + 1} 条映射：固定值类型必须填写值`;
+      if ((t === 'constant' || t === 'template' || t === 'expression') && !m.value)
+        return `第 ${i + 1} 条映射：${t === 'constant' ? '固定值' : t === 'template' ? '字符串拼接' : '数值运算'}类型必须填写值`;
     }
     return null;
   };
@@ -433,6 +440,20 @@ export default function FlowEdit() {
             复制
           </button>
         </div>
+        <div className="form-group" style={{ marginTop: 16 }}>
+          <label>签名密钥（可选，用于验证请求来源）</label>
+          <input
+            type="password"
+            value={flow.webhook_config?.secret || ''}
+            onChange={e => update({ webhook_config: { ...flow.webhook_config, secret: e.target.value } })}
+            placeholder="留空则不校验签名"
+          />
+          {flow.webhook_config?.secret && (
+            <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginTop: 4 }}>
+              源系统需在请求头中发送 X-Signature-256: sha256=HMAC(payload, secret)
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Target API */}
@@ -487,6 +508,38 @@ export default function FlowEdit() {
           >
             + 添加请求头
           </button>
+        </div>
+        <div className="form-row" style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
+          <div className="form-group">
+            <label>超时（秒）</label>
+            <input
+              type="number"
+              min="1"
+              max="300"
+              value={flow.target.timeout || 30}
+              onChange={e => updateTarget({ timeout: parseInt(e.target.value) || 30 })}
+            />
+          </div>
+          <div className="form-group">
+            <label>失败重试次数</label>
+            <input
+              type="number"
+              min="0"
+              max="10"
+              value={flow.target.retry_count || 0}
+              onChange={e => updateTarget({ retry_count: parseInt(e.target.value) || 0 })}
+            />
+          </div>
+          <div className="form-group">
+            <label>重试间隔（秒）</label>
+            <input
+              type="number"
+              min="1"
+              max="60"
+              value={flow.target.retry_delay || 3}
+              onChange={e => updateTarget({ retry_delay: parseInt(e.target.value) || 3 })}
+            />
+          </div>
         </div>
       </div>
 

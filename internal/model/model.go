@@ -9,8 +9,9 @@ type Flow struct {
 	Description string    `json:"description,omitempty"`
 	WebhookPath string    `json:"webhook_path"` // unique path segment for receiving webhooks
 	Target      Target    `json:"target"`
-	Mappings         []Mapping `json:"mappings"`
-	SourceExample    string    `json:"source_example,omitempty"`    // sample source JSON for reference
+	Mappings         []Mapping     `json:"mappings"`
+	WebhookConfig    WebhookConfig `json:"webhook_config,omitempty"`
+	SourceExample    string        `json:"source_example,omitempty"`    // sample source JSON for reference
 	TargetExample    string    `json:"target_example,omitempty"`    // sample target JSON for reference
 	Enabled          bool      `json:"enabled"`
 	CreatedAt   time.Time `json:"created_at"`
@@ -19,9 +20,17 @@ type Flow struct {
 
 // Target defines where to forward the transformed payload.
 type Target struct {
-	URL     string            `json:"url"`
-	Method  string            `json:"method"` // GET, POST, PUT, PATCH, DELETE
-	Headers map[string]string `json:"headers,omitempty"`
+	URL        string            `json:"url"`
+	Method     string            `json:"method"` // GET, POST, PUT, PATCH, DELETE
+	Headers    map[string]string `json:"headers,omitempty"`
+	Timeout    int               `json:"timeout,omitempty"`     // request timeout in seconds, default 30
+	RetryCount int               `json:"retry_count,omitempty"` // max retry attempts, default 0
+	RetryDelay int               `json:"retry_delay,omitempty"` // delay between retries in seconds, default 3
+}
+
+// WebhookConfig holds webhook receiver settings.
+type WebhookConfig struct {
+	Secret string `json:"secret,omitempty"` // HMAC-SHA256 signing secret
 }
 
 // Mapping defines how one field is mapped from source to target.
@@ -49,5 +58,6 @@ type ExecutionLog struct {
 	TargetURL      string    `json:"target_url"`
 	ResponseStatus int       `json:"response_status"`
 	ResponseBody   string    `json:"response_body,omitempty"`
+	RetryAttempts  int       `json:"retry_attempts,omitempty"`
 	Error          string    `json:"error,omitempty"`
 }

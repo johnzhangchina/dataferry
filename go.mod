@@ -1,4 +1,4 @@
-module github.com/nianhe/nianhe
+module github.com/johnzhangchina/dataferry
 
 go 1.26.1
 

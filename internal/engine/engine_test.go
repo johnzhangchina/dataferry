@@ -3,7 +3,7 @@ package engine
 import (
 	"testing"
 
-	"github.com/nianhe/nianhe/internal/model"
+	"github.com/johnzhangchina/dataferry/internal/model"
 )
 
 func TestTransform_DirectMapping(t *testing.T) {
@@ -80,5 +80,56 @@ func TestTransform_EmptySourceErrors(t *testing.T) {
 	_, err := Transform(source, mappings)
 	if err == nil {
 		t.Error("expected error for empty source in direct mapping")
+	}
+}
+
+func TestTransform_Template(t *testing.T) {
+	source := map[string]any{
+		"first": "张",
+		"last":  "三",
+		"id":    float64(42),
+	}
+	mappings := []model.Mapping{
+		{Target: "fullname", Transform: "template", Value: "{{first}} {{last}}"},
+		{Target: "ref", Transform: "template", Value: "ID-{{id}}"},
+	}
+
+	result, err := Transform(source, mappings)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if result["fullname"] != "张 三" {
+		t.Errorf("expected fullname='张 三', got %v", result["fullname"])
+	}
+	if result["ref"] != "ID-42" {
+		t.Errorf("expected ref='ID-42', got %v", result["ref"])
+	}
+}
+
+func TestTransform_Expression(t *testing.T) {
+	source := map[string]any{
+		"price":    float64(9.99),
+		"quantity": float64(3),
+	}
+	mappings := []model.Mapping{
+		{Target: "amount_cent", Transform: "expression", Value: "price * 100"},
+		{Target: "total", Transform: "expression", Value: "price * quantity"},
+		{Target: "with_tax", Transform: "expression", Value: "price + 1.5"},
+	}
+
+	result, err := Transform(source, mappings)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if result["amount_cent"] != 999.0 {
+		t.Errorf("expected amount_cent=999, got %v", result["amount_cent"])
+	}
+	if result["total"] != 29.97 {
+		t.Errorf("expected total=29.97, got %v", result["total"])
+	}
+	if result["with_tax"] != 11.49 {
+		t.Errorf("expected with_tax=11.49, got %v", result["with_tax"])
 	}
 }

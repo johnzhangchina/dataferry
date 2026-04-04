@@ -624,3 +624,33 @@ input::placeholder { color: var(--text-tertiary); }
   padding-top: 16px;
   border-top: 1px solid var(--border);
 }
+
+/* Login page */
+.login-page {
+  display: flex;
+  justify-content: center;
+  padding-top: 120px;
+}
+
+.login-card {
+  width: 320px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 32px 28px;
+  box-shadow: var(--shadow);
+}
+
+.login-title {
+  font-size: 22px;
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 4px;
+}
+
+.login-subtitle {
+  font-size: 13px;
+  color: var(--text-tertiary);
+  text-align: center;
+  margin-bottom: 20px;
+}

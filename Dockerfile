@@ -14,14 +14,14 @@ COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
 COPY --from=frontend /app/web/frontend/dist ./web/frontend/dist
-RUN CGO_ENABLED=1 go build -o nianhe ./cmd/nianhe
+RUN CGO_ENABLED=1 go build -o dataferry ./cmd/dataferry
 
 # Stage 3: Runtime
 FROM alpine:3.20
 RUN apk add --no-cache ca-certificates
 WORKDIR /app
-COPY --from=backend /app/nianhe .
+COPY --from=backend /app/dataferry .
 EXPOSE 8080
 VOLUME /app/data
-ENV NIANHE_DB=/app/data/nianhe.db
-CMD ["./nianhe"]
+ENV DATAFERRY_DB=/app/data/dataferry.db
+CMD ["./dataferry"]

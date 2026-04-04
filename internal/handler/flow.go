@@ -3,9 +3,10 @@ package handler
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
 
-	"github.com/nianhe/nianhe/internal/model"
-	"github.com/nianhe/nianhe/internal/store"
+	"github.com/johnzhangchina/dataferry/internal/model"
+	"github.com/johnzhangchina/dataferry/internal/store"
 
 	"github.com/google/uuid"
 )
@@ -28,7 +29,20 @@ func (h *FlowHandler) ListFlows(w http.ResponseWriter, r *http.Request) {
 	if flows == nil {
 		flows = []model.Flow{}
 	}
-	writeJSON(w, http.StatusOK, flows)
+
+	// Attach last execution info to each flow
+	type flowWithStatus struct {
+		model.Flow
+		LastLog *model.ExecutionLog `json:"last_log,omitempty"`
+	}
+	result := make([]flowWithStatus, len(flows))
+	for i, f := range flows {
+		result[i].Flow = f
+		if log, err := h.store.GetLastLog(f.ID); err == nil {
+			result[i].LastLog = log
+		}
+	}
+	writeJSON(w, http.StatusOK, result)
 }
 
 // CreateFlow POST /api/flows
@@ -99,10 +113,22 @@ func (h *FlowHandler) DeleteFlow(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// ListLogs GET /api/flows/{id}/logs
+// ListLogs GET /api/flows/{id}/logs?page=1&size=20&status=all|success|error
 func (h *FlowHandler) ListLogs(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	logs, err := h.store.ListLogs(id, 100)
+	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
+	size, _ := strconv.Atoi(r.URL.Query().Get("size"))
+	status := r.URL.Query().Get("status")
+
+	if page < 1 {
+		page = 1
+	}
+	if size < 1 || size > 100 {
+		size = 20
+	}
+	offset := (page - 1) * size
+
+	logs, total, err := h.store.ListLogsPaged(id, offset, size, status)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -110,5 +136,11 @@ func (h *FlowHandler) ListLogs(w http.ResponseWriter, r *http.Request) {
 	if logs == nil {
 		logs = []model.ExecutionLog{}
 	}
-	writeJSON(w, http.StatusOK, logs)
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"logs":  logs,
+		"total": total,
+		"page":  page,
+		"size":  size,
+	})
 }
