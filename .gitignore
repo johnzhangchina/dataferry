@@ -1,0 +1,9 @@
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+nianhe
+dist/
+node_modules/
+.env
+.claude/settings.local.json
