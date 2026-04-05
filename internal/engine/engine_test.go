@@ -133,3 +133,83 @@ func TestTransform_Expression(t *testing.T) {
 		t.Errorf("expected with_tax=11.49, got %v", result["with_tax"])
 	}
 }
+
+func TestEvaluateConditions_Pass(t *testing.T) {
+	source := map[string]any{
+		"status": "paid",
+		"amount": float64(100),
+		"tag":    "vip-user",
+	}
+	conditions := []model.Condition{
+		{Field: "status", Operator: "==", Value: "paid"},
+		{Field: "amount", Operator: ">", Value: "50"},
+		{Field: "tag", Operator: "contains", Value: "vip"},
+	}
+	pass, reason := EvaluateConditions(source, conditions, "")
+	if !pass {
+		t.Errorf("expected pass, got fail: %s", reason)
+	}
+}
+
+func TestEvaluateConditions_Fail(t *testing.T) {
+	source := map[string]any{
+		"status": "pending",
+	}
+	conditions := []model.Condition{
+		{Field: "status", Operator: "==", Value: "paid"},
+	}
+	pass, _ := EvaluateConditions(source, conditions, "")
+	if pass {
+		t.Error("expected fail, got pass")
+	}
+}
+
+func TestEvaluateConditions_Exists(t *testing.T) {
+	source := map[string]any{"name": "test"}
+
+	pass, _ := EvaluateConditions(source, []model.Condition{
+		{Field: "name", Operator: "exists"},
+	}, "")
+	if !pass {
+		t.Error("expected pass for existing field")
+	}
+
+	pass, _ = EvaluateConditions(source, []model.Condition{
+		{Field: "missing", Operator: "exists"},
+	}, "")
+	if pass {
+		t.Error("expected fail for missing field")
+	}
+}
+
+func TestEvaluateConditions_OR(t *testing.T) {
+	source := map[string]any{
+		"status": "pending",
+		"amount": float64(200),
+	}
+
+	// OR: status==paid OR amount>100 — amount matches, should pass
+	pass, _ := EvaluateConditions(source, []model.Condition{
+		{Field: "status", Operator: "==", Value: "paid"},
+		{Field: "amount", Operator: ">", Value: "100"},
+	}, "or")
+	if !pass {
+		t.Error("expected OR to pass when one condition matches")
+	}
+
+	// OR: neither matches
+	pass, _ = EvaluateConditions(source, []model.Condition{
+		{Field: "status", Operator: "==", Value: "paid"},
+		{Field: "amount", Operator: ">", Value: "500"},
+	}, "or")
+	if pass {
+		t.Error("expected OR to fail when no condition matches")
+	}
+}
+
+func TestEvaluateConditions_Empty(t *testing.T) {
+	pass, _ := EvaluateConditions(map[string]any{}, nil, "")
+	if !pass {
+		t.Error("empty conditions should always pass")
+	}
+}

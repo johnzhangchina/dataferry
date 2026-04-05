@@ -47,6 +47,7 @@ func (s *Store) migrate() error {
 		webhook_path TEXT NOT NULL UNIQUE,
 		target_json TEXT NOT NULL,
 		mappings_json TEXT NOT NULL,
+		conditions_json TEXT DEFAULT '[]',
 		webhook_config_json TEXT DEFAULT '{}',
 		source_example TEXT DEFAULT '',
 		target_example TEXT DEFAULT '',
@@ -81,26 +82,28 @@ func (s *Store) migrate() error {
 		"ALTER TABLE flows ADD COLUMN target_example TEXT DEFAULT ''",
 		"ALTER TABLE flows ADD COLUMN webhook_config_json TEXT DEFAULT '{}'",
 		"ALTER TABLE execution_logs ADD COLUMN retry_attempts INTEGER DEFAULT 0",
+		"ALTER TABLE flows ADD COLUMN conditions_json TEXT DEFAULT '[]'",
 	} {
 		s.db.Exec(col)
 	}
 	return nil
 }
 
-const flowCols = `id, name, description, webhook_path, target_json, mappings_json, webhook_config_json, source_example, target_example, enabled, created_at, updated_at`
+const flowCols = `id, name, description, webhook_path, target_json, mappings_json, conditions_json, webhook_config_json, source_example, target_example, enabled, created_at, updated_at`
 
 // CreateFlow inserts a new flow.
 func (s *Store) CreateFlow(f *model.Flow) error {
 	targetJSON, _ := json.Marshal(f.Target)
 	mappingsJSON, _ := json.Marshal(f.Mappings)
+	conditionsJSON, _ := json.Marshal(f.Conditions)
 	webhookCfgJSON, _ := json.Marshal(f.WebhookConfig)
 	now := time.Now().UTC()
 	f.CreatedAt = now
 	f.UpdatedAt = now
 	_, err := s.db.Exec(
-		`INSERT INTO flows (`+flowCols+`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		`INSERT INTO flows (`+flowCols+`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		f.ID, f.Name, f.Description, f.WebhookPath,
-		string(targetJSON), string(mappingsJSON), string(webhookCfgJSON),
+		string(targetJSON), string(mappingsJSON), string(conditionsJSON), string(webhookCfgJSON),
 		f.SourceExample, f.TargetExample,
 		boolToInt(f.Enabled), now.Format(time.RFC3339), now.Format(time.RFC3339),
 	)
@@ -140,13 +143,14 @@ func (s *Store) ListFlows() ([]model.Flow, error) {
 func (s *Store) UpdateFlow(f *model.Flow) error {
 	targetJSON, _ := json.Marshal(f.Target)
 	mappingsJSON, _ := json.Marshal(f.Mappings)
+	conditionsJSON, _ := json.Marshal(f.Conditions)
 	webhookCfgJSON, _ := json.Marshal(f.WebhookConfig)
 	f.UpdatedAt = time.Now().UTC()
 	_, err := s.db.Exec(
-		`UPDATE flows SET name=?, description=?, webhook_path=?, target_json=?, mappings_json=?, webhook_config_json=?, source_example=?, target_example=?, enabled=?, updated_at=?
+		`UPDATE flows SET name=?, description=?, webhook_path=?, target_json=?, mappings_json=?, conditions_json=?, webhook_config_json=?, source_example=?, target_example=?, enabled=?, updated_at=?
 		 WHERE id=?`,
 		f.Name, f.Description, f.WebhookPath,
-		string(targetJSON), string(mappingsJSON), string(webhookCfgJSON),
+		string(targetJSON), string(mappingsJSON), string(conditionsJSON), string(webhookCfgJSON),
 		f.SourceExample, f.TargetExample,
 		boolToInt(f.Enabled), f.UpdatedAt.Format(time.RFC3339), f.ID,
 	)
@@ -271,15 +275,16 @@ type scanner interface {
 
 func (s *Store) scanFlow(row scanner) (*model.Flow, error) {
 	var f model.Flow
-	var targetJSON, mappingsJSON, webhookCfgJSON, createdAt, updatedAt string
+	var targetJSON, mappingsJSON, conditionsJSON, webhookCfgJSON, createdAt, updatedAt string
 	var enabled int
 	err := row.Scan(&f.ID, &f.Name, &f.Description, &f.WebhookPath,
-		&targetJSON, &mappingsJSON, &webhookCfgJSON, &f.SourceExample, &f.TargetExample, &enabled, &createdAt, &updatedAt)
+		&targetJSON, &mappingsJSON, &conditionsJSON, &webhookCfgJSON, &f.SourceExample, &f.TargetExample, &enabled, &createdAt, &updatedAt)
 	if err != nil {
 		return nil, err
 	}
 	json.Unmarshal([]byte(targetJSON), &f.Target)
 	json.Unmarshal([]byte(mappingsJSON), &f.Mappings)
+	json.Unmarshal([]byte(conditionsJSON), &f.Conditions)
 	json.Unmarshal([]byte(webhookCfgJSON), &f.WebhookConfig)
 	f.Enabled = enabled == 1
 	f.CreatedAt, _ = time.Parse(time.RFC3339, createdAt)

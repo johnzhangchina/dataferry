@@ -543,6 +543,92 @@ export default function FlowEdit() {
         </div>
       </div>
 
+      {/* Conditions */}
+      <div className="card">
+        <div className="card-header">
+          <h3 className="section-title" style={{ margin: 0 }}>转发条件</h3>
+          <button className="btn btn-ghost btn-sm" onClick={() => {
+            const conditions = [...(flow.conditions || []), { field: '', operator: '==', value: '' }];
+            update({ conditions });
+          }}>
+            + 添加
+          </button>
+        </div>
+
+        {(!flow.conditions || flow.conditions.length === 0) ? (
+          <div style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>
+            未设置条件，所有请求都会转发
+          </div>
+        ) : (
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+              <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>条件关系：</span>
+              <button
+                className={`btn btn-sm ${(flow.condition_logic || 'and') === 'and' ? 'btn-primary' : 'btn-secondary'}`}
+                onClick={() => update({ condition_logic: 'and' })}
+              >
+                全部满足 (AND)
+              </button>
+              <button
+                className={`btn btn-sm ${flow.condition_logic === 'or' ? 'btn-primary' : 'btn-secondary'}`}
+                onClick={() => update({ condition_logic: 'or' })}
+              >
+                任一满足 (OR)
+              </button>
+            </div>
+            {flow.conditions.map((c, i) => (
+              <div key={i} className="condition-row">
+                <input
+                  value={c.field}
+                  onChange={e => {
+                    const conditions = [...flow.conditions!];
+                    conditions[i] = { ...conditions[i], field: e.target.value };
+                    update({ conditions });
+                  }}
+                  placeholder="data.status"
+                />
+                <select
+                  value={c.operator}
+                  onChange={e => {
+                    const conditions = [...flow.conditions!];
+                    conditions[i] = { ...conditions[i], operator: e.target.value };
+                    update({ conditions });
+                  }}
+                >
+                  <option value="==">等于</option>
+                  <option value="!=">不等于</option>
+                  <option value=">">大于</option>
+                  <option value="<">小于</option>
+                  <option value="contains">包含</option>
+                  <option value="exists">存在</option>
+                </select>
+                {c.operator !== 'exists' && (
+                  <input
+                    value={c.value || ''}
+                    onChange={e => {
+                      const conditions = [...flow.conditions!];
+                      conditions[i] = { ...conditions[i], value: e.target.value };
+                      update({ conditions });
+                    }}
+                    placeholder="期望值"
+                  />
+                )}
+                <button
+                  className="mapping-delete"
+                  onClick={() => {
+                    const conditions = flow.conditions!.filter((_, j) => j !== i);
+                    update({ conditions });
+                  }}
+                  title="删除"
+                >
+                  &times;
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* Mappings */}
       <div className="card">
         <div className="card-header">

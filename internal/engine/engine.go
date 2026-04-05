@@ -9,6 +9,95 @@ import (
 	"github.com/johnzhangchina/dataferry/internal/model"
 )
 
+// EvaluateConditions checks conditions with the given logic ("and" or "or").
+// Empty conditions always pass. Default logic is "and".
+func EvaluateConditions(source map[string]any, conditions []model.Condition, logic string) (bool, string) {
+	if len(conditions) == 0 {
+		return true, ""
+	}
+
+	if logic == "or" {
+		// OR: at least one must pass
+		var lastReason string
+		for _, c := range conditions {
+			if pass, _ := evalOneCondition(source, c); pass {
+				return true, ""
+			} else {
+				lastReason = fmt.Sprintf("no condition matched (last: %s)", conditionDesc(c))
+			}
+		}
+		return false, lastReason
+	}
+
+	// AND (default): all must pass
+	for _, c := range conditions {
+		if pass, reason := evalOneCondition(source, c); !pass {
+			return false, reason
+		}
+	}
+	return true, ""
+}
+
+func conditionDesc(c model.Condition) string {
+	if c.Operator == "exists" {
+		return fmt.Sprintf("%s exists", c.Field)
+	}
+	return fmt.Sprintf("%s %s %q", c.Field, c.Operator, c.Value)
+}
+
+func evalOneCondition(source map[string]any, c model.Condition) (bool, string) {
+	if c.Operator == "exists" {
+		_, err := getNestedValue(source, c.Field)
+		if err != nil {
+			return false, fmt.Sprintf("field %q does not exist", c.Field)
+		}
+		return true, ""
+	}
+
+	val, err := getNestedValue(source, c.Field)
+	if err != nil {
+		return false, fmt.Sprintf("field %q not found", c.Field)
+	}
+
+	valStr := fmt.Sprintf("%v", val)
+
+	switch c.Operator {
+	case "==":
+		if valStr != c.Value {
+			return false, fmt.Sprintf("%s == %q, got %q", c.Field, c.Value, valStr)
+		}
+	case "!=":
+		if valStr == c.Value {
+			return false, fmt.Sprintf("%s != %q, got %q", c.Field, c.Value, valStr)
+		}
+	case ">":
+		fVal, err1 := strconv.ParseFloat(valStr, 64)
+		fExpected, err2 := strconv.ParseFloat(c.Value, 64)
+		if err1 != nil || err2 != nil {
+			return false, fmt.Sprintf("%s > %s: non-numeric comparison", c.Field, c.Value)
+		}
+		if fVal <= fExpected {
+			return false, fmt.Sprintf("%s > %s, got %s", c.Field, c.Value, valStr)
+		}
+	case "<":
+		fVal, err1 := strconv.ParseFloat(valStr, 64)
+		fExpected, err2 := strconv.ParseFloat(c.Value, 64)
+		if err1 != nil || err2 != nil {
+			return false, fmt.Sprintf("%s < %s: non-numeric comparison", c.Field, c.Value)
+		}
+		if fVal >= fExpected {
+			return false, fmt.Sprintf("%s < %s, got %s", c.Field, c.Value, valStr)
+		}
+	case "contains":
+		if !strings.Contains(valStr, c.Value) {
+			return false, fmt.Sprintf("%s contains %q, got %q", c.Field, c.Value, valStr)
+		}
+	default:
+		return false, fmt.Sprintf("unknown operator %q", c.Operator)
+	}
+	return true, ""
+}
+
 // Transform applies mapping rules to a source JSON object and produces a target JSON object.
 func Transform(source map[string]any, mappings []model.Mapping) (map[string]any, error) {
 	result := make(map[string]any)

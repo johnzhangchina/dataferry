@@ -90,6 +90,22 @@ func (h *WebhookHandler) Handle(w http.ResponseWriter, r *http.Request) {
 		TargetURL:     flow.Target.URL,
 	}
 
+	// Check conditions
+	if len(flow.Conditions) > 0 {
+		if pass, reason := engine.EvaluateConditions(source, flow.Conditions, flow.ConditionLogic); !pass {
+			log.Printf("[%s] condition not met: %s", requestID, reason)
+			execLog.Error = "skipped: " + reason
+			execLog.ResponseStatus = 0
+			h.saveLog(execLog)
+			writeJSON(w, http.StatusOK, map[string]any{
+				"status":       "skipped",
+				"reason":       reason,
+				"execution_id": requestID,
+			})
+			return
+		}
+	}
+
 	// Transform
 	mapped, err := engine.Transform(source, flow.Mappings)
 	if err != nil {

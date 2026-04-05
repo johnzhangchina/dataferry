@@ -13,6 +13,12 @@ export interface WebhookConfig {
   secret?: string;
 }
 
+export interface Condition {
+  field: string;
+  operator: string;
+  value?: string;
+}
+
 export interface Mapping {
   source?: string;
   target: string;
@@ -26,6 +32,8 @@ export interface Flow {
   description?: string;
   webhook_path: string;
   target: Target;
+  conditions?: Condition[];
+  condition_logic?: string;
   mappings: Mapping[];
   webhook_config?: WebhookConfig;
   source_example?: string;

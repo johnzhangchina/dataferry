@@ -9,6 +9,8 @@ type Flow struct {
 	Description string    `json:"description,omitempty"`
 	WebhookPath string    `json:"webhook_path"` // unique path segment for receiving webhooks
 	Target      Target    `json:"target"`
+	Conditions       []Condition   `json:"conditions,omitempty"`
+	ConditionLogic   string        `json:"condition_logic,omitempty"` // "and" (default) or "or"
 	Mappings         []Mapping     `json:"mappings"`
 	WebhookConfig    WebhookConfig `json:"webhook_config,omitempty"`
 	SourceExample    string        `json:"source_example,omitempty"`    // sample source JSON for reference
@@ -31,6 +33,13 @@ type Target struct {
 // WebhookConfig holds webhook receiver settings.
 type WebhookConfig struct {
 	Secret string `json:"secret,omitempty"` // HMAC-SHA256 signing secret
+}
+
+// Condition defines a filter rule. All conditions must be met (AND) for the webhook to be forwarded.
+type Condition struct {
+	Field    string `json:"field"`              // source JSON path, e.g. "data.status"
+	Operator string `json:"operator"`           // ==, !=, >, <, contains, exists
+	Value    string `json:"value,omitempty"`     // expected value (not needed for "exists")
 }
 
 // Mapping defines how one field is mapped from source to target.
